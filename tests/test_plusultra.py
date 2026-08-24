@@ -97,8 +97,16 @@ class GateTests(unittest.TestCase):
 
     def test_empty_plan_verdict_is_rejected(self):
         with patch("sys.stdin", io.StringIO("   \n")):
-            with self.assertRaisesRegex(SystemExit, "plan verdict must be non-empty"):
+            with self.assertRaisesRegex(SystemExit, "plan verdict must contain visible content"):
                 plusultra.cmd_plan(["--session", "session-1234", "--verdict", "-"])
+
+    def test_invisible_plan_verdict_is_rejected(self):
+        for verdict in ("\u200b", "\u200d", "\u2060", "\x00"):
+            with self.subTest(verdict=repr(verdict)):
+                with self.assertRaisesRegex(SystemExit, "visible content"):
+                    plusultra.cmd_plan(
+                        ["--session", "session-1234", "--verdict", verdict]
+                    )
 
     def test_reality_cannot_be_recorded_before_mutation(self):
         plusultra.save("session-1234", {"plan": {"entry": "approved"}, "mutations": 0})
@@ -126,10 +134,21 @@ class GateTests(unittest.TestCase):
             "session-1234", {"plan": {"entry": "approved"}, "mutations": 1}
         )
         with patch("sys.stdin", io.StringIO("\n")):
-            with self.assertRaisesRegex(SystemExit, "reality verdict must be non-empty"):
+            with self.assertRaisesRegex(SystemExit, "reality verdict must contain visible content"):
                 plusultra.cmd_confirm(
                     ["--session", "session-1234", "--verdict", "-"]
                 )
+
+    def test_invisible_reality_verdict_is_rejected(self):
+        plusultra.save(
+            "session-1234", {"plan": {"entry": "approved"}, "mutations": 1}
+        )
+        for verdict in ("\u200b", "\u200d", "\u2060", "\x00"):
+            with self.subTest(verdict=repr(verdict)):
+                with self.assertRaisesRegex(SystemExit, "visible content"):
+                    plusultra.cmd_confirm(
+                        ["--session", "session-1234", "--verdict", verdict]
+                    )
 
 
 if __name__ == "__main__":

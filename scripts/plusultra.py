@@ -20,6 +20,7 @@ import os
 import re
 import sys
 import time
+import unicodedata
 from datetime import datetime, timezone
 
 HOME = os.path.expanduser("~")
@@ -395,8 +396,9 @@ def _verdict_text(args):
 
 def _required_verdict(args, kind):
     verdict = _verdict_text(args).strip()
-    if not verdict:
-        raise SystemExit("plusultra: %s verdict must be non-empty" % kind)
+    has_content = any(unicodedata.category(char)[0] not in {"C", "Z"} for char in verdict)
+    if not has_content:
+        raise SystemExit("plusultra: %s verdict must contain visible content" % kind)
     return verdict[:4000]
 
 
