@@ -101,7 +101,7 @@ class GateTests(unittest.TestCase):
                 plusultra.cmd_plan(["--session", "session-1234", "--verdict", "-"])
 
     def test_invisible_plan_verdict_is_rejected(self):
-        for verdict in ("\u200b", "\u200d", "\u2060", "\x00"):
+        for verdict in ("\u200b", "\u200d", "\u2060", "\ufe0f", "\u034f", "\u0301", "\x00"):
             with self.subTest(verdict=repr(verdict)):
                 with self.assertRaisesRegex(SystemExit, "visible content"):
                     plusultra.cmd_plan(
@@ -143,7 +143,7 @@ class GateTests(unittest.TestCase):
         plusultra.save(
             "session-1234", {"plan": {"entry": "approved"}, "mutations": 1}
         )
-        for verdict in ("\u200b", "\u200d", "\u2060", "\x00"):
+        for verdict in ("\u200b", "\u200d", "\u2060", "\ufe0f", "\u034f", "\u0301", "\x00"):
             with self.subTest(verdict=repr(verdict)):
                 with self.assertRaisesRegex(SystemExit, "visible content"):
                     plusultra.cmd_confirm(

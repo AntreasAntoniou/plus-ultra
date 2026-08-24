@@ -396,7 +396,7 @@ def _verdict_text(args):
 
 def _required_verdict(args, kind):
     verdict = _verdict_text(args).strip()
-    has_content = any(unicodedata.category(char)[0] not in {"C", "Z"} for char in verdict)
+    has_content = any(unicodedata.category(char)[0] in {"L", "N", "P", "S"} for char in verdict)
     if not has_content:
         raise SystemExit("plusultra: %s verdict must contain visible content" % kind)
     return verdict[:4000]
