@@ -17,8 +17,11 @@ integration can block a tool call or stop a turn.
 
 ## Install the skill
 
-Copy or symlink the repository into the skills directory recognized by your agent host. The skill
-entry point is [`SKILL.md`](SKILL.md).
+```sh
+npx skills add AntreasAntoniou/plus-ultra
+```
+
+Or copy/symlink the repository into the skills directory recognized by your agent host. The skill entry point is [`SKILL.md`](SKILL.md).
 
 ## Optional Claude Code enforcement
 
