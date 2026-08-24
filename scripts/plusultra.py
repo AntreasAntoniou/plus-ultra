@@ -255,6 +255,9 @@ def hook_pre_tool(payload):
     st = load(session)
     if st.get("plan"):
         st["mutations"] = int(st.get("mutations", 0)) + 1
+        # A reality verdict describes the world at one mutation boundary. Any
+        # later write invalidates it and requires a fresh observation.
+        st["reality"] = None
         st["status"] = "APPLIED"
         save(session, st)
         return {}
@@ -290,7 +293,8 @@ def hook_stop(payload):
     st = load(session)
     if not st or int(st.get("mutations", 0)) == 0:
         return {}
-    if st.get("reality"):
+    reality = st.get("reality") or {}
+    if reality.get("entry") and reality.get("for_mutations") == int(st.get("mutations", 0)):
         st["status"] = "CONFIRMED"
         save(session, st)
         return {}
@@ -389,11 +393,18 @@ def _verdict_text(args):
     return sys.stdin.read().strip() if v == "-" else v
 
 
+def _required_verdict(args, kind):
+    verdict = _verdict_text(args).strip()
+    if not verdict:
+        raise SystemExit("plusultra: %s verdict must be non-empty" % kind)
+    return verdict[:4000]
+
+
 def cmd_plan(args):
     session = _require_session(args)
     st = load(session) or {"turn": "adhoc", "mutations": 0}
     st["plan"] = {"arbiter": _flag(args, "--arbiter", "Athena"),
-                  "at": _now(), "entry": _verdict_text(args)[:4000]}
+                  "at": _now(), "entry": _required_verdict(args, "plan")}
     st["status"] = "PLANNED"
     save(session, st)
     record("plan verdict recorded", "plan verdict recorded",
@@ -404,9 +415,15 @@ def cmd_plan(args):
 
 def cmd_confirm(args):
     session = _require_session(args)
-    st = load(session) or {"turn": "adhoc", "mutations": 1}
+    st = load(session)
+    mutations = int(st.get("mutations", 0)) if st else 0
+    if not st or mutations == 0:
+        raise SystemExit(
+            "plusultra: reality can only be recorded after this session mutates state"
+        )
     st["reality"] = {"verifier": _flag(args, "--verifier", "Argus"),
-                     "at": _now(), "entry": _verdict_text(args)[:4000]}
+                     "at": _now(), "entry": _required_verdict(args, "reality"),
+                     "for_mutations": mutations}
     st["status"] = "CONFIRMED"
     save(session, st)
     record("reality verdict recorded", "reality verdict recorded",

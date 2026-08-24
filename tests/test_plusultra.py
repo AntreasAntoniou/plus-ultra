@@ -1,8 +1,10 @@
 import importlib.util
 import json
 from pathlib import Path
+import io
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "plusultra.py"
@@ -92,6 +94,42 @@ class GateTests(unittest.TestCase):
         plusultra.record("test", "event", answer=42)
         event = json.loads(Path(plusultra.AUDIT).read_text(encoding="utf-8"))
         self.assertEqual(event["details"]["answer"], 42)
+
+    def test_empty_plan_verdict_is_rejected(self):
+        with patch("sys.stdin", io.StringIO("   \n")):
+            with self.assertRaisesRegex(SystemExit, "plan verdict must be non-empty"):
+                plusultra.cmd_plan(["--session", "session-1234", "--verdict", "-"])
+
+    def test_reality_cannot_be_recorded_before_mutation(self):
+        plusultra.save("session-1234", {"plan": {"entry": "approved"}, "mutations": 0})
+        with self.assertRaisesRegex(SystemExit, "after this session mutates"):
+            plusultra.cmd_confirm(
+                ["--session", "session-1234", "--verdict", "looks good"]
+            )
+
+    def test_later_mutation_invalidates_reality_verdict(self):
+        plusultra.save(
+            "session-1234",
+            {"plan": {"entry": "approved"}, "mutations": 1, "reality": None},
+        )
+        plusultra.cmd_confirm(
+            ["--session", "session-1234", "--verdict", "checked mutation one"]
+        )
+        self.assertEqual(plusultra.hook_stop({"session_id": "session-1234"}), {})
+
+        self.assertEqual(plusultra.hook_pre_tool(bash("git push")), {})
+        blocked = plusultra.hook_stop({"session_id": "session-1234"})
+        self.assertEqual(blocked["decision"], "block")
+
+    def test_empty_reality_verdict_is_rejected(self):
+        plusultra.save(
+            "session-1234", {"plan": {"entry": "approved"}, "mutations": 1}
+        )
+        with patch("sys.stdin", io.StringIO("\n")):
+            with self.assertRaisesRegex(SystemExit, "reality verdict must be non-empty"):
+                plusultra.cmd_confirm(
+                    ["--session", "session-1234", "--verdict", "-"]
+                )
 
 
 if __name__ == "__main__":
